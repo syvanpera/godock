@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"html"
 	"html/template"
 	"time"
 
@@ -71,4 +72,8 @@ func (v *MessagesView) NewMessage(m FlowMessage) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (v *MessagesView) Write(p []byte) (n int, err error) {
+	return v.TextView.Write([]byte(html.UnescapeString(string(p))))
 }
