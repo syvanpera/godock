@@ -23,7 +23,7 @@ type Server struct {
 	FlowdockClient *flowdock.Client
 }
 
-func (s *Server) Init() error {
+func (s *Server) Authenticate() error {
 	client, err := s.initFlowdockClient()
 	if err != nil {
 		log.Debug().Err(err).Msg("Flowdock client initialization failed")
@@ -35,7 +35,7 @@ func (s *Server) Init() error {
 }
 
 func (s *Server) initFlowdockClient() (*flowdock.Client, error) {
-	log.Info().Msg("Initializing Flowdock Client")
+	log.Info().Msg("Authenticating with Flowdock")
 
 	conf := &oauth2.Config{
 		ClientID:     s.ClientID,

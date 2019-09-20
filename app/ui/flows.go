@@ -34,7 +34,10 @@ func NewFlowsView() *FlowsView {
 	return &v
 }
 
-func (v *FlowsView) Init(flows []flowdock.Flow) {
+func (v *FlowsView) Init() {
+}
+
+func (v *FlowsView) SetFlows(flows []flowdock.Flow) {
 	for i, flow := range flows {
 		icon := "  "
 		color := tcell.ColorWhite

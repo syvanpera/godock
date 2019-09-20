@@ -17,13 +17,15 @@ type App struct {
 
 	Server *server.Server
 
-	organizations []flowdock.Organization
-	flows         []flowdock.Flow
-	flowLookup    map[string]*flowdock.Flow
-	users         []flowdock.User
-	userLookup    map[int]*flowdock.User
+	organizations      []flowdock.Organization
+	organizationLookup map[string]*flowdock.Organization
+	flows              []flowdock.Flow
+	flowLookup         map[string]*flowdock.Flow
+	users              []flowdock.User
+	userLookup         map[int]*flowdock.User
 
-	activeFlow flowdock.Flow
+	activeOrganization flowdock.Organization
+	activeFlow         flowdock.Flow
 
 	pages *tview.Pages
 	views map[string]tview.Primitive
@@ -49,10 +51,14 @@ func NewApp(server *server.Server) *App {
 }
 
 func (a *App) Init() {
-	a.Server.Init()
+	a.Server.Authenticate()
 
 	organizations, _, _ := a.Server.FlowdockClient.Organizations.All()
 	a.organizations = organizations
+	a.organizationLookup = make(map[string]*flowdock.Organization, len(a.organizations))
+	for _, o := range organizations {
+		a.organizationLookup[*o.ParameterizedName] = &o
+	}
 
 	flows, _, _ := a.Server.FlowdockClient.Flows.List(false, nil)
 	a.flows = make([]flowdock.Flow, len(a.flows))
@@ -64,6 +70,11 @@ func (a *App) Init() {
 		}
 	}
 
+	// Set the first organization as active
+	if len(a.organizations) > 0 {
+		a.changeActiveOrganization(&a.organizations[0])
+	}
+
 	users, _, _ := a.Server.FlowdockClient.Users.All()
 	a.users = users
 	a.userLookup = make(map[int]*flowdock.User, len(a.users))
@@ -71,11 +82,17 @@ func (a *App) Init() {
 		a.userLookup[*u.Id] = &a.users[i]
 	}
 
-	a.views["flows"].(*ui.FlowsView).Init(a.flows)
+	a.views["flows"].(*ui.FlowsView).Init()
 	a.views["organizations"].(*ui.OrganizationsView).Init(a.organizations)
 	a.views["input"].(*ui.InputView).Init()
 	a.views["debug"].(*ui.DebugView).Init(func() {
 		a.Draw()
+	})
+
+	a.views["organizations"].(*ui.OrganizationsView).SetSelectedFunc(func(row, col int) {
+		if row < len(a.organizations) {
+			a.changeActiveOrganization(&a.organizations[row])
+		}
 	})
 
 	a.views["flows"].(*ui.FlowsView).SetSelectedFunc(func(row, col int) {
@@ -97,11 +114,6 @@ func (a *App) Init() {
 }
 
 func (a *App) Run() {
-	// Set the first flow as active
-	if len(a.flows) > 0 {
-		a.changeActiveFlow(&a.flows[0])
-	}
-
 	// Start listening to all subscribed flows
 	subscriptions := make([]string, 0, len(a.flows))
 	for _, f := range a.flows {
@@ -172,7 +184,34 @@ func (a *App) Stop() {
 	a.Application.Stop()
 }
 
+func (a *App) changeActiveOrganization(org *flowdock.Organization) {
+	if *org == a.activeOrganization {
+		log.Debug().Msg("Selected organization already active")
+		return
+	}
+	log.Debug().Interface("ORG", *org.ParameterizedName).Msg("Changing active organization")
+	a.activeOrganization = *org
+
+	flows := []flowdock.Flow{}
+	for _, f := range a.flows {
+		if *f.Organization.Id == *a.activeOrganization.Id {
+			flows = append(flows, f)
+		}
+	}
+
+	// Set the first flow of the organization as active
+	if len(flows) > 0 {
+		a.changeActiveFlow(&flows[0])
+	}
+
+	a.views["flows"].(*ui.FlowsView).SetFlows(flows)
+}
+
 func (a *App) changeActiveFlow(flow *flowdock.Flow) {
+	if *flow == a.activeFlow {
+		log.Debug().Msg("Selected flow already active")
+		return
+	}
 	log.Debug().Interface("FLOW", flow).Msg("Changing active flow")
 	a.activeFlow = *flow
 	f := tview.Escape(fmt.Sprintf("[%s]", *flow.Name))
