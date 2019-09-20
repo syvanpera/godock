@@ -3,13 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/syvanpera/godock/app"
+	"github.com/syvanpera/godock/server"
 )
 
 const (
@@ -44,7 +44,18 @@ func init() {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	app := app.NewApp(config)
+	server := &server.Server{
+		ClientID:     config.Flowdock.ClientID,
+		ClientSecret: config.Flowdock.ClientSecret,
+		AuthURL:      config.Flowdock.AuthURL,
+		TokenURL:     config.Flowdock.TokenURL,
+		RedirectURL:  config.Flowdock.RedirectURL,
+		TokenCache:   server.CacheFile("token-cache.json"),
+	}
+
+	app := app.NewApp(server)
+	defer app.Stop()
+
 	app.Init()
 	app.Run()
 }
@@ -55,14 +66,14 @@ func initialize() {
 	initLogging()
 
 	config, err = app.LoadConfig()
-	log.Debug().Interface("CONFIG", config).Msg("Configuration loaded")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Unable to initialize configuration")
 	}
+	log.Debug().Interface("CONFIG", config).Msg("Configuration loaded")
 }
 
 func initLogging() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05"})
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if debug || viper.GetBool("debug") {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)

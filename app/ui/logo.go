@@ -31,11 +31,11 @@ func (r *LogoView) Draw(screen tcell.Screen) {
  [green]╚█████╔╝╚█████╔╝[blue]█████╔╝╚█████╔╝╚█████╗██║  ██╗
  [green] ╚════╝  ╚════╝ [blue]╚════╝  ╚════╝  ╚════╝╚═╝  ╚═╝`
 
-	for index, l := range strings.Split(logo, "\n") {
-		if index >= height {
+	for i, l := range strings.Split(logo, "\n") {
+		if i >= height {
 			break
 		}
-		tview.Print(screen, l, x, y+index, width, tview.AlignLeft, tcell.ColorYellow)
+		tview.Print(screen, l, x, y+i-1, width, tview.AlignLeft, tcell.ColorYellow)
 	}
 }
 

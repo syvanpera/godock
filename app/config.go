@@ -19,8 +19,8 @@ var (
 )
 
 type Config struct {
-	Godock *godock
-	Auth   *auth
+	Godock   *godock
+	Flowdock *auth
 }
 
 type godock struct {
@@ -42,7 +42,7 @@ func Default() *Config {
 			Debug:   false,
 			LogFile: ConfigLogFile,
 		},
-		Auth: &auth{
+		Flowdock: &auth{
 			ClientID:     "",
 			ClientSecret: "",
 			AuthURL:      "https://www.flowdock.com/oauth/authorize",

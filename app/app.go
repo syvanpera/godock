@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 
@@ -10,21 +9,19 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/syvanpera/godock/app/ui"
 	"github.com/syvanpera/godock/flowdock"
-	"golang.org/x/oauth2"
+	"github.com/syvanpera/godock/server"
 )
 
 type App struct {
 	*tview.Application
 
-	Config         *Config
-	Token          *oauth2.Token
-	TokenCache     TokenCache
-	FlowdockClient *flowdock.Client
+	Server *server.Server
 
-	flows      []flowdock.Flow
-	flowLookup map[string]*flowdock.Flow
-	users      []flowdock.User
-	userLookup map[int]*flowdock.User
+	organizations []flowdock.Organization
+	flows         []flowdock.Flow
+	flowLookup    map[string]*flowdock.Flow
+	users         []flowdock.User
+	userLookup    map[int]*flowdock.User
 
 	activeFlow flowdock.Flow
 
@@ -32,40 +29,39 @@ type App struct {
 	views map[string]tview.Primitive
 }
 
-func NewApp(config *Config) *App {
+func NewApp(server *server.Server) *App {
 	a := &App{
 		Application: tview.NewApplication(),
-		Config:      config,
-		TokenCache:  CacheFile("token-cache.json"),
+		Server:      server,
 		pages:       tview.NewPages(),
 	}
 
 	a.views = map[string]tview.Primitive{
-		"logo":     ui.NewLogoView(),
-		"flows":    ui.NewFlowsView(),
-		"messages": ui.NewMessagesView(),
-		"input":    ui.NewInputView(),
-		"debug":    ui.NewDebugView(),
+		"logo":          ui.NewLogoView(),
+		"organizations": ui.NewOrganizationsView(),
+		"flows":         ui.NewFlowsView(),
+		"messages":      ui.NewMessagesView(),
+		"input":         ui.NewInputView(),
+		"debug":         ui.NewDebugView(),
 	}
 
 	return a
 }
 
 func (a *App) Init() {
-	var err error
-	a.FlowdockClient, err = a.initFlowdockClient()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Flowdock client initialization failed")
-	}
+	a.Server.Init()
 
-	flows, _, _ := a.FlowdockClient.Flows.List(false, nil)
+	organizations, _, _ := a.Server.FlowdockClient.Organizations.All()
+	a.organizations = organizations
+
+	flows, _, _ := a.Server.FlowdockClient.Flows.List(false, nil)
 	a.flows = flows
 	a.flowLookup = make(map[string]*flowdock.Flow, len(a.flows))
 	for i, f := range a.flows {
 		a.flowLookup[*f.Id] = &a.flows[i]
 	}
 
-	users, _, _ := a.FlowdockClient.Users.All()
+	users, _, _ := a.Server.FlowdockClient.Users.All()
 	a.users = users
 	a.userLookup = make(map[int]*flowdock.User, len(a.users))
 	for i, u := range a.users {
@@ -73,6 +69,7 @@ func (a *App) Init() {
 	}
 
 	a.views["flows"].(*ui.FlowsView).Init(a.flows)
+	a.views["organizations"].(*ui.OrganizationsView).Init(a.organizations)
 	a.views["input"].(*ui.InputView).Init()
 	a.views["debug"].(*ui.DebugView).Init(func() {
 		a.Draw()
@@ -84,12 +81,13 @@ func (a *App) Init() {
 		}
 	})
 
-	grid := tview.NewGrid().SetRows(8, 0, 2, 15).SetColumns(48, 0).SetBorders(false)
+	grid := tview.NewGrid().SetRows(7, 4, 0, 1, 15).SetColumns(48, 0).SetBorders(false)
 	grid.AddItem(a.views["logo"], 0, 0, 1, 1, 1, 1, false)
-	grid.AddItem(a.views["flows"], 1, 0, 2, 1, 1, 1, true)
-	grid.AddItem(a.views["messages"], 0, 1, 2, 1, 1, 1, false)
-	grid.AddItem(a.views["input"], 2, 1, 1, 1, 1, 1, false)
-	grid.AddItem(a.views["debug"], 3, 0, 1, 2, 1, 1, false)
+	grid.AddItem(a.views["organizations"], 1, 0, 1, 1, 1, 1, true)
+	grid.AddItem(a.views["flows"], 2, 0, 1, 1, 1, 1, true)
+	grid.AddItem(a.views["messages"], 0, 1, 3, 1, 1, 1, false)
+	grid.AddItem(a.views["input"], 3, 0, 1, 2, 1, 1, false)
+	grid.AddItem(a.views["debug"], 4, 0, 1, 2, 1, 1, false)
 
 	a.pages.AddPage("main", grid, true, true)
 	a.SetRoot(a.pages, true)
@@ -108,7 +106,7 @@ func (a *App) Run() {
 		subscriptions = append(subscriptions, path)
 	}
 
-	msgChan, es, _ := a.FlowdockClient.Messages.Stream(subscriptions, a.Token.AccessToken)
+	msgChan, es, _ := a.Server.FlowdockClient.Messages.Stream(subscriptions, a.Server.Token.AccessToken)
 	defer es.Close()
 
 	go func() {
@@ -139,6 +137,8 @@ func (a *App) Run() {
 				switch event.Rune() {
 				case 'm':
 					a.SetFocus(a.views["messages"])
+				case 'o':
+					a.SetFocus(a.views["organizations"])
 				case 'f':
 					a.SetFocus(a.views["flows"])
 				case 'd':
@@ -165,49 +165,8 @@ func (a *App) Run() {
 	}
 }
 
-func (a *App) initFlowdockClient() (*flowdock.Client, error) {
-	log.Info().Msg("Initializing Flowdock Client")
-
-	conf := &oauth2.Config{
-		ClientID:     a.Config.Auth.ClientID,
-		ClientSecret: a.Config.Auth.ClientSecret,
-		Scopes:       []string{"flow", "private", "profile"},
-		RedirectURL:  a.Config.Auth.RedirectURL,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  a.Config.Auth.AuthURL,
-			TokenURL: a.Config.Auth.TokenURL,
-		},
-	}
-
-	ctx := context.Background()
-
-	token, err := a.TokenCache.Token()
-	if err != nil {
-		log.Debug().Msg("No cached token found, need authorization")
-		var code string
-
-		url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
-		fmt.Printf("Visit the URL below for the auth dialog:\n%v\n", url)
-
-		fmt.Printf("And input the authorization code here: ")
-		if _, err := fmt.Scan(&code); err != nil {
-			return nil, err
-		}
-
-		token, err = conf.Exchange(ctx, code)
-		if err != nil {
-			return nil, err
-		}
-
-		a.TokenCache.PutToken(token)
-	}
-
-	log.Debug().Interface("Token", token).Msg("Using token")
-	a.Token = token
-
-	tc := conf.Client(ctx, token)
-
-	return flowdock.NewClient(tc), nil
+func (a *App) Stop() {
+	a.Application.Stop()
 }
 
 func (a *App) changeActiveFlow(flow *flowdock.Flow) {
@@ -221,7 +180,7 @@ func (a *App) changeActiveFlow(flow *flowdock.Flow) {
 		Event: "message",
 		Limit: 30,
 	}
-	messages, _, err := a.FlowdockClient.Messages.List(*a.activeFlow.Organization.ParameterizedName, *a.activeFlow.ParameterizedName, &opts)
+	messages, _, err := a.Server.FlowdockClient.Messages.List(*a.activeFlow.Organization.ParameterizedName, *a.activeFlow.ParameterizedName, &opts)
 	if err != nil {
 		log.Error().Err(err).Interface("FLOW", a.activeFlow).Msg("Error while loading messages")
 	}
@@ -243,7 +202,7 @@ func (a *App) sendMessage(msg string) error {
 		Content: msg,
 		Tags:    []string{"#godock", "#golang"},
 	}
-	_, _, err := a.FlowdockClient.Messages.Create(&opt)
+	_, _, err := a.Server.FlowdockClient.Messages.Create(&opt)
 
 	return err
 }
