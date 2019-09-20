@@ -55,10 +55,13 @@ func (a *App) Init() {
 	a.organizations = organizations
 
 	flows, _, _ := a.Server.FlowdockClient.Flows.List(false, nil)
-	a.flows = flows
+	a.flows = make([]flowdock.Flow, len(a.flows))
 	a.flowLookup = make(map[string]*flowdock.Flow, len(a.flows))
-	for i, f := range a.flows {
-		a.flowLookup[*f.Id] = &a.flows[i]
+	for _, f := range flows {
+		if *f.Open {
+			a.flows = append(a.flows, f)
+			a.flowLookup[*f.Id] = &f
+		}
 	}
 
 	users, _, _ := a.Server.FlowdockClient.Users.All()
