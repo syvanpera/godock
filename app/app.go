@@ -127,9 +127,15 @@ func (a *App) Run() {
 	go func() {
 		for msg := range msgChan {
 			log.Debug().Interface("MSG", msg).Msg("Message from stream")
-			if *msg.Event == "message" && *msg.FlowID == *a.activeFlow.Id {
-				m := a.convertMessageToFlowMessage(msg)
-				a.views["messages"].(*ui.MessagesView).NewMessage(m)
+			if *msg.Event == "message" {
+				if *msg.FlowID == *a.activeFlow.Id {
+					m := a.convertMessageToFlowMessage(msg)
+					a.views["messages"].(*ui.MessagesView).NewMessage(m)
+				} else {
+					a.QueueUpdateDraw(func() {
+						a.views["flows"].(*ui.FlowsView).MarkFlowUnread(*msg.FlowID, true)
+					})
+				}
 			}
 		}
 	}()
@@ -234,6 +240,7 @@ func (a *App) changeActiveFlow(flow *flowdock.Flow) {
 	}
 
 	a.views["messages"].(*ui.MessagesView).SetMessages(msgs)
+	a.views["flows"].(*ui.FlowsView).MarkFlowUnread(*flow.Id, false)
 }
 
 func (a *App) sendMessage(msg string) error {
