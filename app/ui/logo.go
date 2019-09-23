@@ -24,12 +24,14 @@ func (r *LogoView) Draw(screen tcell.Screen) {
 	x, y, width, height := r.GetInnerRect()
 
 	logo := `
+
  [green] █████╗  █████╗ [blue]█████╗  █████╗  █████╗██╗  ██╗
  [green]██╔═══╝ ██╔══██╗[blue]██╔═██╗██╔══██╗██╔═══╝██║ ██╔╝
  [green]██║ ███╗██║  ██║[blue]██║ ██║██║  ██║██║    █████╔╝
  [green]██║  ██║██║  ██║[blue]██║ ██║██║  ██║██║    ██╔═██╗
  [green]╚█████╔╝╚█████╔╝[blue]█████╔╝╚█████╔╝╚█████╗██║  ██╗
- [green] ╚════╝  ╚════╝ [blue]╚════╝  ╚════╝  ╚════╝╚═╝  ╚═╝`
+ [green] ╚════╝  ╚════╝ [blue]╚════╝  ╚════╝  ╚════╝╚═╝  ╚═╝
+`
 
 	for i, l := range strings.Split(logo, "\n") {
 		if i >= height {

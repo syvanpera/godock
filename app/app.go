@@ -70,16 +70,16 @@ func (a *App) Init() {
 		}
 	}
 
-	// Set the first organization as active
-	if len(a.organizations) > 0 {
-		a.changeActiveOrganization(&a.organizations[0])
-	}
-
 	users, _, _ := a.Server.FlowdockClient.Users.All()
 	a.users = users
 	a.userLookup = make(map[int]*flowdock.User, len(a.users))
 	for i, u := range a.users {
 		a.userLookup[*u.Id] = &a.users[i]
+	}
+
+	// Set the first organization as active
+	if len(a.organizations) > 0 {
+		a.changeActiveOrganization(&a.organizations[0])
 	}
 
 	a.views["flows"].(*ui.FlowsView).Init()
@@ -101,7 +101,7 @@ func (a *App) Init() {
 		}
 	})
 
-	grid := tview.NewGrid().SetRows(7, 4, 0, 1, 15).SetColumns(48, 0).SetBorders(false)
+	grid := tview.NewGrid().SetRows(8, 4, 0, 1, 15).SetColumns(48, 0).SetBorders(false)
 	grid.AddItem(a.views["logo"], 0, 0, 1, 1, 1, 1, false)
 	grid.AddItem(a.views["organizations"], 1, 0, 1, 1, 1, 1, true)
 	grid.AddItem(a.views["flows"], 2, 0, 1, 1, 1, 1, true)

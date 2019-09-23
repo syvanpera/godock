@@ -54,7 +54,7 @@ func (s *MessagesService) Stream(filters []string, token string) (chan Message, 
 			event, err := es.Read()
 
 			if err != nil {
-				log.Error().Err(err).Msg("Error from Flowdock Stream API")
+				panic(err)
 				// TODO panic or add error channel!
 			}
 
