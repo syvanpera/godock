@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
+	"github.com/rs/zerolog/log"
 	"github.com/syvanpera/godock/flowdock"
 )
 
@@ -38,6 +39,13 @@ func NewFlowsView() *FlowsView {
 }
 
 func (v *FlowsView) Init() {
+}
+
+func (v *FlowsView) SetFlowSelectedFunc(handler func(flow flowdock.Flow)) {
+	v.Table.SetSelectedFunc(func(row, _ int) {
+		log.Debug().Int("ROW", row).Interface("FLOW", v.Flows[row]).Msg("Flow selected")
+		handler(v.Flows[row])
+	})
 }
 
 func (v *FlowsView) SetFlows(flows []flowdock.Flow) {

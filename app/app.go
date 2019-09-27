@@ -51,7 +51,9 @@ func NewApp(server *server.Server) *App {
 }
 
 func (a *App) Init() {
-	a.Server.Authenticate()
+	if err := a.Server.Authenticate(); err != nil {
+		panic(err)
+	}
 
 	organizations, _, _ := a.Server.FlowdockClient.Organizations.All()
 	a.organizations = organizations
@@ -95,10 +97,8 @@ func (a *App) Init() {
 		}
 	})
 
-	a.views["flows"].(*ui.FlowsView).SetSelectedFunc(func(row, col int) {
-		if row < len(a.flows) {
-			a.changeActiveFlow(&a.flows[row])
-		}
+	a.views["flows"].(*ui.FlowsView).SetFlowSelectedFunc(func(flow flowdock.Flow) {
+		a.changeActiveFlow(flow)
 	})
 
 	grid := tview.NewGrid().SetRows(8, 4, 0, 1, 15).SetColumns(48, 0).SetBorders(false)
@@ -207,19 +207,19 @@ func (a *App) changeActiveOrganization(org *flowdock.Organization) {
 
 	// Set the first flow of the organization as active
 	if len(flows) > 0 {
-		a.changeActiveFlow(&flows[0])
+		a.changeActiveFlow(flows[0])
 	}
 
 	a.views["flows"].(*ui.FlowsView).SetFlows(flows)
 }
 
-func (a *App) changeActiveFlow(flow *flowdock.Flow) {
-	if *flow == a.activeFlow {
+func (a *App) changeActiveFlow(flow flowdock.Flow) {
+	if flow == a.activeFlow {
 		log.Debug().Msg("Selected flow already active")
 		return
 	}
 	log.Debug().Interface("FLOW", flow).Msg("Changing active flow")
-	a.activeFlow = *flow
+	a.activeFlow = flow
 	f := tview.Escape(fmt.Sprintf("[%s]", *flow.Name))
 	prompt := fmt.Sprintf(" [yellow]  %s: ", f)
 	a.views["input"].(*ui.InputView).SetLabel(prompt)
