@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/derailed/tview"
 	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
 	"github.com/rs/zerolog/log"
 	"github.com/syvanpera/godock/app/ui"
 	"github.com/syvanpera/godock/flowdock"

@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"github.com/rivo/tview"
+	"github.com/derailed/tview"
 )
 
 type HelpView struct {

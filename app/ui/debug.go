@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"github.com/rivo/tview"
+	"github.com/derailed/tview"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -28,5 +28,5 @@ func NewDebugView() *DebugView {
 func (v *DebugView) Init(changedFn func()) {
 	v.SetChangedFunc(changedFn)
 
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: tview.ANSIWriter(v), TimeFormat: "15:04:05"})
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: tview.ANSIWriter(v, "black", "white"), TimeFormat: "15:04:05"})
 }

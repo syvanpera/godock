@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/rivo/tview"
+	"github.com/derailed/tview"
 )
 
 const (

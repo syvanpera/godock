@@ -3,8 +3,8 @@ package ui
 import (
 	"strings"
 
+	"github.com/derailed/tview"
 	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
 	"github.com/rs/zerolog/log"
 )
 

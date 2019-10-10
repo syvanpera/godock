@@ -1,8 +1,8 @@
 package ui
 
 import (
+	"github.com/derailed/tview"
 	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
 	"github.com/rs/zerolog/log"
 	"github.com/syvanpera/godock/flowdock"
 )
