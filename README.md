@@ -1,4 +1,4 @@
-# GoDock - A terminal flowdock client
+# GoDock - A console flowdock client
 
 ## Installation
 
